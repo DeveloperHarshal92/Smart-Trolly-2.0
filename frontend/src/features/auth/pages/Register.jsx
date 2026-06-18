@@ -279,7 +279,7 @@ const Register = () => {
               id="username"
               label="Username"
               type="text"
-              placeholder="johndoe"
+              placeholder="Enter Username"
               value={formData.username}
               onChange={handleChange}
               icon={icons.user}

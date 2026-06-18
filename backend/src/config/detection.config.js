@@ -39,6 +39,6 @@ export const MODEL_CONFIG = {
   },
 
   // Inference thresholds
-  CONFIDENCE_THRESHOLD: 0.6,  // min class score to keep a detection
+  CONFIDENCE_THRESHOLD: 0.85,  // min class score to keep a detection
   IOU_THRESHOLD: 0.45,        // NMS: suppress boxes overlapping more than this
 };

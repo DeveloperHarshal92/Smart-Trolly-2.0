@@ -3,7 +3,7 @@
 // Input:  raw output tensor [1, 9, 1029] from onnxruntime
 // Output: filtered array of Detection objects
 
-import { MODEL_CONFIG } from "./detection.config.js";
+import { MODEL_CONFIG } from "../config/detection.config.js";
 
 const {
   NUM_ANCHORS,

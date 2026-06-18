@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import Login from "../features/auth/pages/Login";
 import Register from "../features/auth/pages/Register";
 import AuthLayout from "../features/auth/pages/AuthLayout";
+import CameraView from "../features/shop/pages/CameraView";
 
 // Placeholder — replace with real Shop page when built
 const ShopPage = () => (
@@ -30,7 +31,7 @@ export const routes = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <ShopPage />,
+        element: <CameraView/>,
       },
       // Add more protected routes here as the project grows:
       // { path: "/checkout", element: <CheckoutPage /> },

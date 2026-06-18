@@ -21,9 +21,13 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.7.0",
     "morgan": "^1.11.0",
+    "nodemailer": "^9.0.0",
     "onnxruntime-node": "^1.26.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "sharp": "^0.35.1"
+    "pdfkit": "^0.19.1",
+    "razorpay": "^2.9.6",
+    "sharp": "^0.35.1",
+    "ws": "^8.21.0"
   }
 }
