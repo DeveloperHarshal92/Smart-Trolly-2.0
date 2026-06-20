@@ -1,9 +1,11 @@
 // features/shop/pages/CameraView.jsx
 // UI layer only. Camera + detection from useDetection, checkout from useCheckout.
 
-import { useSelector } from "react-redux";
+import { useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useDetection } from "../hooks/useDetection";
-import { useCheckout } from "../../payment/hooks/Usecheckout";
+import { useCheckout } from "..//hooks/useCheckout";
+import { fetchPreviewBill } from "../../payment/state/payment.slice";
 
 const STATUS_STYLES = {
   idle:       { dot: "bg-slate-400", text: "Not started" },
@@ -11,6 +13,10 @@ const STATUS_STYLES = {
   connected:  { dot: "bg-emerald-400", text: "Live" },
   error:      { dot: "bg-red-500", text: "Error" },
 };
+
+// Debounce window for the live preview call — trolley can change rapidly as
+// multiple items stream in; we don't want a request per item.
+const PREVIEW_DEBOUNCE_MS = 600;
 
 const ReceiptModal = ({ receipt, onClose }) => {
   if (!receipt) return null;
@@ -68,7 +74,10 @@ const ReceiptModal = ({ receipt, onClose }) => {
 };
 
 const CameraView = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
+  const { previewBill, previewLoading } = useSelector((s) => s.payment);
+
   const {
     videoRef,
     canvasRef,
@@ -91,6 +100,25 @@ const CameraView = () => {
   const statusStyle = STATUS_STYLES[status] ?? STATUS_STYLES.idle;
   const isRunning = status === "connecting" || status === "connected";
   const isCheckingOut = ["creating_order", "awaiting_payment", "verifying"].includes(checkoutStatus);
+
+  // Debounced live preview — fires PREVIEW_DEBOUNCE_MS after trolleyItems
+  // last changed, not on every single addition.
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (trolleyItems.length === 0) {
+      return; // nothing to preview — backend would 400 on empty array anyway
+    }
+
+    debounceRef.current = setTimeout(() => {
+      const labels = trolleyItems.map((item) => item.label);
+      dispatch(fetchPreviewBill(labels));
+    }, PREVIEW_DEBOUNCE_MS);
+
+    return () => clearTimeout(debounceRef.current);
+  }, [trolleyItems, dispatch]);
 
   const handleCheckout = () => {
     const labels = trolleyItems.map((item) => item.label);
@@ -164,7 +192,7 @@ const CameraView = () => {
           </div>
         </div>
 
-        {/* Bill panel — 30% width, PDF-style list */}
+        {/* Bill panel — 30% width, PDF-style list, backend-derived total */}
         <div className="lg:w-[30%]">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm sticky top-6">
             <div className="px-5 py-4 border-b border-slate-100">
@@ -173,34 +201,43 @@ const CameraView = () => {
             </div>
 
             <div className="max-h-[400px] overflow-y-auto">
-              {trolleyItems.length === 0 ? (
-                <p className="px-5 py-8 text-sm text-slate-400 text-center">No items yet</p>
+              {!previewBill || previewBill.lineItems.length === 0 ? (
+                <p className="px-5 py-8 text-sm text-slate-400 text-center">
+                  {trolleyItems.length === 0 ? "No items yet" : "Calculating…"}
+                </p>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs text-slate-400 uppercase tracking-wide">
                       <th className="text-left font-medium px-5 py-2">S.No</th>
                       <th className="text-left font-medium px-2 py-2">Product</th>
-                      <th className="text-right font-medium px-5 py-2">Qty</th>
+                      <th className="text-right font-medium px-2 py-2">Qty</th>
+                      <th className="text-right font-medium px-5 py-2">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(
-                      trolleyItems.reduce((acc, item) => {
-                        acc[item.label] = (acc[item.label] || 0) + 1;
-                        return acc;
-                      }, {})
-                    ).map(([label, qty], i) => (
-                      <tr key={label} className="border-t border-slate-50">
-                        <td className="px-5 py-2.5 text-slate-400">{i + 1}</td>
-                        <td className="px-2 py-2.5 text-slate-700 font-medium">{label}</td>
-                        <td className="px-5 py-2.5 text-right text-slate-600">{qty}</td>
+                    {previewBill.lineItems.map((line) => (
+                      <tr key={line.sn} className="border-t border-slate-50">
+                        <td className="px-5 py-2.5 text-slate-400">{line.sn}</td>
+                        <td className="px-2 py-2.5 text-slate-700 font-medium">{line.item}</td>
+                        <td className="px-2 py-2.5 text-right text-slate-600">{line.quantity}</td>
+                        <td className="px-5 py-2.5 text-right text-slate-600">₹{line.total}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
             </div>
+
+            {/* Backend-computed total — never derived on the frontend */}
+            {previewBill && previewBill.lineItems.length > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50">
+                <span className="text-sm font-semibold text-slate-900">
+                  Total {previewLoading && <span className="text-slate-400 font-normal">· updating…</span>}
+                </span>
+                <span className="text-base font-bold text-emerald-600">₹{previewBill.totalAmount}</span>
+              </div>
+            )}
 
             <div className="p-5 border-t border-slate-100">
               {checkoutError && (

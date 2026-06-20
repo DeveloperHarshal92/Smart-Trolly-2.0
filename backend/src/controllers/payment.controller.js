@@ -9,6 +9,26 @@ import { sendBillEmail } from "../services/mailer.service.js";
 import userModel from "../models/user.model.js";
 
 /**
+ * POST /api/payment/preview
+ * Body: { items: ["colgate", "colgate", "parle_g", ...] }
+ * Lightweight, no Razorpay order created — just returns the priced breakdown.
+ * Called live as the trolley changes, so the UI can show a backend-derived
+ * total before the user ever clicks checkout. Safe to call frequently.
+ */
+export const previewBill = async (req, res) => {
+  try {
+    const { items } = req.body;
+    const bill = generateBill(items); // throws if empty/unknown item
+    return res.status(200).json({ success: true, bill });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Could not compute bill",
+    });
+  }
+};
+
+/**
  * POST /api/payment/create-order
  * Body: { items: ["colgate", "colgate", "parle_g", ...] }
  * Called when user clicks "Checkout" — creates a Razorpay order for the
@@ -73,7 +93,6 @@ export const verifyPayment = async (req, res) => {
     });
 
     if (user?.email) {
-      // Don't block the response on email — fire and log, payment already succeeded
       sendBillEmail({
         toEmail: user.email,
         username: user.username,
@@ -86,7 +105,7 @@ export const verifyPayment = async (req, res) => {
       success: true,
       message: "Payment verified successfully",
       bill,
-      pdfBase64: pdfBuffer.toString("base64"), // for immediate on-screen display/download
+      pdfBase64: pdfBuffer.toString("base64"),
     });
   } catch (error) {
     return res.status(500).json({

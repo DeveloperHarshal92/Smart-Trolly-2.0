@@ -1,15 +1,11 @@
 // features/shop/state/detection.slice.js
-// Owns: connection status, latest bounding boxes (for overlay), and the
-// trolley item list with per-item cooldown + temporal consistency filtering.
+// Owns: connection status, latest bounding boxes (for overlay), trolley items
+// with cooldown + temporal consistency, and a transient "justAdded" list that
+// the hook layer watches to trigger side effects (beep sound) outside the reducer.
 
 import { createSlice } from "@reduxjs/toolkit";
 
-// How long (ms) a class must NOT be detected before it can be auto-added again.
 const RE_ADD_COOLDOWN_MS = 4000;
-
-// A class must be seen in this many consecutive frames before it's trusted
-// enough to add to the trolley. Filters out single-frame hallucinations —
-// a real product sitting in frame triggers repeatedly, noise usually doesn't.
 const CONSECUTIVE_FRAMES_REQUIRED = 3;
 
 const detectionSlice = createSlice({
@@ -20,7 +16,8 @@ const detectionSlice = createSlice({
     liveBoxes: [],
     trolleyItems: [],
     lastAddedAt: {},
-    streakCount: {},     // { [label]: consecutive frame count }
+    streakCount: {},
+    justAdded: [],   // labels added in the MOST RECENT dispatch only — for side effects
   },
   reducers: {
     setStatus: (state, action) => {
@@ -34,11 +31,11 @@ const detectionSlice = createSlice({
     detectionReceived: (state, action) => {
       const detections = action.payload;
       state.liveBoxes = detections;
+      state.justAdded = []; // reset every dispatch — only this frame's additions matter
 
       const now = Date.now();
       const seenThisFrame = new Set(detections.map((d) => d.label));
 
-      // Reset streak for any class NOT seen this frame — must be consecutive
       for (const label of Object.keys(state.streakCount)) {
         if (!seenThisFrame.has(label)) {
           state.streakCount[label] = 0;
@@ -56,7 +53,8 @@ const detectionSlice = createSlice({
         if (streakOk && offCooldown) {
           state.trolleyItems.push({ label, addedAt: now });
           state.lastAddedAt[label] = now;
-          state.streakCount[label] = 0; // reset so it must re-qualify for next add
+          state.streakCount[label] = 0;
+          state.justAdded.push(label); // <-- hook layer watches this
         }
       }
     },
@@ -67,6 +65,7 @@ const detectionSlice = createSlice({
       state.trolleyItems = [];
       state.lastAddedAt = {};
       state.streakCount = {};
+      state.justAdded = [];
     },
   },
 });

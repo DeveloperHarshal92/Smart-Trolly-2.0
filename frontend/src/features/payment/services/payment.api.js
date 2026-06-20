@@ -1,6 +1,4 @@
 // features/shop/services/payment.api.js
-// Transport only — no Razorpay SDK logic here, that lives in the hook.
-
 import axios from "axios";
 
 const paymentApiInstance = axios.create({
@@ -18,8 +16,17 @@ const extractError = (error) => {
 };
 
 /**
- * @param {string[]} items - flat array of detected labels, e.g. ["colgate", "parle_g"]
+ * Live, side-effect-free bill preview — no Razorpay order created.
  */
+export const previewBill = async (items) => {
+  try {
+    const response = await paymentApiInstance.post("/preview", { items });
+    return response.data; // { bill }
+  } catch (error) {
+    throw new Error(extractError(error), { cause: error });
+  }
+};
+
 export const createOrder = async (items) => {
   try {
     const response = await paymentApiInstance.post("/create-order", { items });

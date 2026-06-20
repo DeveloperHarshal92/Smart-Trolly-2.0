@@ -21,13 +21,38 @@ const JPEG_QUALITY = 0.7; // balance bandwidth vs detection accuracy
 
 export const useDetection = () => {
   const dispatch = useDispatch();
-  const { status, error, liveBoxes, trolleyItems } = useSelector((s) => s.detection);
+  const { status, error, liveBoxes, trolleyItems, justAdded } = useSelector((s) => s.detection);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);   // hidden canvas used only for frame capture
   const socketRef = useRef(null);
   const intervalRef = useRef(null);
   const streamRef = useRef(null);
+  const beepAudioRef = useRef(null); // lazily created on first beep — avoids
+                                       // browsers blocking autoplay before any user gesture
+
+  const playBeep = useCallback(() => {
+    if (!beepAudioRef.current) {
+      beepAudioRef.current = new Audio("/sounds/beep.mp3");
+    }
+    // Reset to start in case a previous beep is still finishing —
+    // back-to-back detections shouldn't get silently dropped
+    beepAudioRef.current.currentTime = 0;
+    beepAudioRef.current.play().catch(() => {
+      // Autoplay can be blocked until the user interacts with the page at least
+      // once (browser policy) — clicking "Start Scanning" counts as that gesture,
+      // so this should rarely fire, but we swallow it rather than crash the app
+    });
+  }, []);
+
+  // Fires once per dispatch where the reducer added new item(s) to the trolley —
+  // NOT on every raw detection frame, otherwise it would beep continuously
+  // while an item just sits in view.
+  useEffect(() => {
+    if (justAdded.length > 0) {
+      playBeep();
+    }
+  }, [justAdded, playBeep]);
 
   const captureAndSend = useCallback(() => {
     const video = videoRef.current;

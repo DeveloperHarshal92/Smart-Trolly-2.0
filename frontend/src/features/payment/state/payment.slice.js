@@ -1,14 +1,32 @@
 // features/shop/state/payment.slice.js
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { createOrder as createOrderAPI, verifyPayment as verifyPaymentAPI } from "../services/payment.api";
+import {
+  previewBill as previewBillAPI,
+  createOrder as createOrderAPI,
+  verifyPayment as verifyPaymentAPI,
+} from "../services/payment.api";
+
+// Live preview — fired as trolley changes, debounced in the hook layer.
+// Silent-fail on error (e.g. empty trolley) since this isn't a user action.
+export const fetchPreviewBill = createAsyncThunk(
+  "payment/fetchPreviewBill",
+  async (items, { rejectWithValue }) => {
+    try {
+      const res = await previewBillAPI(items);
+      return res.bill;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
 
 export const initiateCheckout = createAsyncThunk(
   "payment/initiateCheckout",
   async (items, { rejectWithValue }) => {
     try {
       const res = await createOrderAPI(items);
-      return res; // { order, bill }
+      return res;
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -20,7 +38,7 @@ export const confirmPayment = createAsyncThunk(
   async (verificationData, { rejectWithValue }) => {
     try {
       const res = await verifyPaymentAPI(verificationData);
-      return res; // { bill, pdfBase64 }
+      return res;
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -30,10 +48,12 @@ export const confirmPayment = createAsyncThunk(
 const paymentSlice = createSlice({
   name: "payment",
   initialState: {
-    status: "idle",       // idle | creating_order | awaiting_payment | verifying | success | failed
+    status: "idle",
     error: null,
-    currentOrder: null,    // { order, bill } from create-order
-    receipt: null,         // { bill, pdfBase64 } from verify
+    currentOrder: null,
+    receipt: null,
+    previewBill: null,    // { lineItems, totalAmount, currency } — live, backend-derived
+    previewLoading: false,
   },
   reducers: {
     resetPayment: (state) => {
@@ -48,14 +68,27 @@ const paymentSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Preview — does NOT touch `status`/`error`, those are reserved for the
+      // actual checkout flow. Preview failures (e.g. empty trolley) are normal,
+      // not error states the user needs to see.
+      .addCase(fetchPreviewBill.pending, (state) => {
+        state.previewLoading = true;
+      })
+      .addCase(fetchPreviewBill.fulfilled, (state, action) => {
+        state.previewLoading = false;
+        state.previewBill = action.payload;
+      })
+      .addCase(fetchPreviewBill.rejected, (state) => {
+        state.previewLoading = false;
+        state.previewBill = null;
+      })
+
       .addCase(initiateCheckout.pending, (state) => {
         state.status = "creating_order";
         state.error = null;
       })
       .addCase(initiateCheckout.fulfilled, (state, action) => {
         state.currentOrder = action.payload;
-        // status moves to "awaiting_payment" explicitly once Razorpay modal opens —
-        // handled by the hook calling setAwaitingPayment, not here
       })
       .addCase(initiateCheckout.rejected, (state, action) => {
         state.status = "failed";
