@@ -4,7 +4,7 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useDetection } from "../hooks/useDetection";
-import { useCheckout } from "..//hooks/useCheckout";
+import { useCheckout } from "../hooks/useCheckout";
 import { fetchPreviewBill } from "../../payment/state/payment.slice";
 
 const STATUS_STYLES = {
