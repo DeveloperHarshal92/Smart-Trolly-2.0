@@ -1,7 +1,5 @@
-// routes/payment.routes.js
-
 import { Router } from "express";
-import { previewBill, createOrder, verifyPayment } from "../controllers/payment.controller.js";
+import { previewBill, createOrder, verifyPayment, resendReceipt } from "../controllers/payment.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -26,5 +24,12 @@ router.post("/create-order", protect, createOrder);
  * @access Private
  */
 router.post("/verify", protect, verifyPayment);
+
+/**
+ * @route POST /api/payment/resend-receipt
+ * @desc Resend last receipt email to logged-in user
+ * @access Private
+ */
+router.post("/resend-receipt", protect, resendReceipt);
 
 export default router;

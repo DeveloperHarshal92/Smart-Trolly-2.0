@@ -6,72 +6,16 @@ import { useDispatch, useSelector } from "react-redux";
 import { useDetection } from "../hooks/useDetection";
 import { useCheckout } from "../hooks/useCheckout";
 import { fetchPreviewBill } from "../../payment/state/payment.slice";
+import ReceiptModal from "./ReceiptModal";
 
 const STATUS_STYLES = {
-  idle:       { dot: "bg-slate-400", text: "Not started" },
+  idle: { dot: "bg-slate-400", text: "Not started" },
   connecting: { dot: "bg-amber-400 animate-pulse", text: "Connecting…" },
-  connected:  { dot: "bg-emerald-400", text: "Live" },
-  error:      { dot: "bg-red-500", text: "Error" },
+  connected: { dot: "bg-emerald-400", text: "Live" },
+  error: { dot: "bg-red-500", text: "Error" },
 };
 
-// Debounce window for the live preview call — trolley can change rapidly as
-// multiple items stream in; we don't want a request per item.
 const PREVIEW_DEBOUNCE_MS = 600;
-
-const ReceiptModal = ({ receipt, onClose }) => {
-  if (!receipt) return null;
-
-  const downloadPDF = () => {
-    const link = document.createElement("a");
-    link.href = `data:application/pdf;base64,${receipt.pdfBase64}`;
-    link.download = "receipt.pdf";
-    link.click();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-        <div className="flex flex-col items-center text-center mb-5">
-          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-lg font-bold text-slate-900">Payment Successful</h2>
-          <p className="text-sm text-slate-400 mt-1">A copy has been emailed to you</p>
-        </div>
-
-        <div className="bg-slate-50 rounded-xl divide-y divide-slate-200 mb-5">
-          {receipt.bill.lineItems.map((line) => (
-            <div key={line.sn} className="flex items-center justify-between px-4 py-2.5 text-sm">
-              <span className="text-slate-600">{line.item} × {line.quantity}</span>
-              <span className="font-medium text-slate-800">₹{line.total}</span>
-            </div>
-          ))}
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="font-semibold text-slate-900">Total</span>
-            <span className="font-bold text-emerald-600">₹{receipt.bill.totalAmount}</span>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={downloadPDF}
-            className="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-all"
-          >
-            Download PDF
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-all"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const CameraView = () => {
   const dispatch = useDispatch();
@@ -99,7 +43,11 @@ const CameraView = () => {
 
   const statusStyle = STATUS_STYLES[status] ?? STATUS_STYLES.idle;
   const isRunning = status === "connecting" || status === "connected";
-  const isCheckingOut = ["creating_order", "awaiting_payment", "verifying"].includes(checkoutStatus);
+  const isCheckingOut = [
+    "creating_order",
+    "awaiting_payment",
+    "verifying",
+  ].includes(checkoutStatus);
 
   // Debounced live preview — fires PREVIEW_DEBOUNCE_MS after trolleyItems
   // last changed, not on every single addition.
@@ -128,35 +76,50 @@ const CameraView = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-6 sm:p-10">
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6">
-
         {/* Camera — 70% width on large screens */}
         <div className="lg:w-[70%]">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold text-slate-900">Live Detection</h1>
             <div className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${statusStyle.dot}`} />
-              <span className="text-xs font-medium text-slate-500">{statusStyle.text}</span>
+              <span className="text-xs font-medium text-slate-500">
+                {statusStyle.text}
+              </span>
             </div>
           </div>
 
           <div className="relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden shadow-lg">
-            <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+            />
             <canvas ref={canvasRef} className="hidden" />
 
             {liveBoxes.map((box, i) => {
               const video = videoRef.current;
               if (!video || !video.videoWidth) return null;
 
-              const leftPct   = (box.bboxPixel.x1 / video.videoWidth) * 100;
-              const topPct    = (box.bboxPixel.y1 / video.videoHeight) * 100;
-              const widthPct  = ((box.bboxPixel.x2 - box.bboxPixel.x1) / video.videoWidth) * 100;
-              const heightPct = ((box.bboxPixel.y2 - box.bboxPixel.y1) / video.videoHeight) * 100;
+              const leftPct = (box.bboxPixel.x1 / video.videoWidth) * 100;
+              const topPct = (box.bboxPixel.y1 / video.videoHeight) * 100;
+              const widthPct =
+                ((box.bboxPixel.x2 - box.bboxPixel.x1) / video.videoWidth) *
+                100;
+              const heightPct =
+                ((box.bboxPixel.y2 - box.bboxPixel.y1) / video.videoHeight) *
+                100;
 
               return (
                 <div
                   key={i}
                   className="absolute border-2 border-emerald-400 rounded"
-                  style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${widthPct}%`, height: `${heightPct}%` }}
+                  style={{
+                    left: `${leftPct}%`,
+                    top: `${topPct}%`,
+                    width: `${widthPct}%`,
+                    height: `${heightPct}%`,
+                  }}
                 >
                   <span className="absolute -top-5 left-0 bg-emerald-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-sm whitespace-nowrap">
                     {box.label} · {(box.confidence * 100).toFixed(0)}%
@@ -196,8 +159,12 @@ const CameraView = () => {
         <div className="lg:w-[30%]">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm sticky top-6">
             <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="text-sm font-semibold text-slate-700">Order Summary</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{trolleyItems.length} item(s) detected</p>
+              <h2 className="text-sm font-semibold text-slate-700">
+                Order Summary
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {trolleyItems.length} item(s) detected
+              </p>
             </div>
 
             <div className="max-h-[400px] overflow-y-auto">
@@ -210,18 +177,30 @@ const CameraView = () => {
                   <thead>
                     <tr className="text-xs text-slate-400 uppercase tracking-wide">
                       <th className="text-left font-medium px-5 py-2">S.No</th>
-                      <th className="text-left font-medium px-2 py-2">Product</th>
+                      <th className="text-left font-medium px-2 py-2">
+                        Product
+                      </th>
                       <th className="text-right font-medium px-2 py-2">Qty</th>
-                      <th className="text-right font-medium px-5 py-2">Amount</th>
+                      <th className="text-right font-medium px-5 py-2">
+                        Amount
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {previewBill.lineItems.map((line) => (
                       <tr key={line.sn} className="border-t border-slate-50">
-                        <td className="px-5 py-2.5 text-slate-400">{line.sn}</td>
-                        <td className="px-2 py-2.5 text-slate-700 font-medium">{line.item}</td>
-                        <td className="px-2 py-2.5 text-right text-slate-600">{line.quantity}</td>
-                        <td className="px-5 py-2.5 text-right text-slate-600">₹{line.total}</td>
+                        <td className="px-5 py-2.5 text-slate-400">
+                          {line.sn}
+                        </td>
+                        <td className="px-2 py-2.5 text-slate-700 font-medium">
+                          {line.item}
+                        </td>
+                        <td className="px-2 py-2.5 text-right text-slate-600">
+                          {line.quantity}
+                        </td>
+                        <td className="px-5 py-2.5 text-right text-slate-600">
+                          ₹{line.total}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -232,10 +211,22 @@ const CameraView = () => {
             {/* Backend-computed total — never derived on the frontend */}
             {previewBill && previewBill.lineItems.length > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50">
-                <span className="text-sm font-semibold text-slate-900">
-                  Total {previewLoading && <span className="text-slate-400 font-normal">· updating…</span>}
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    Total{" "}
+                    {previewLoading && (
+                      <span className="text-slate-400 font-normal text-xs">
+                        · updating…
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Incl. GST ₹{previewBill.totalGST}
+                  </p>
+                </div>
+                <span className="text-base font-bold text-emerald-600">
+                  ₹{previewBill.totalAmount}
                 </span>
-                <span className="text-base font-bold text-emerald-600">₹{previewBill.totalAmount}</span>
               </div>
             )}
 
@@ -253,7 +244,6 @@ const CameraView = () => {
             </div>
           </div>
         </div>
-
       </div>
 
       {checkoutStatus === "success" && (

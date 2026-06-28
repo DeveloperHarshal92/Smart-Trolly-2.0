@@ -1,97 +1,133 @@
 // services/pdf.service.js
-// Generates a bill PDF using PDFKit — chosen over Puppeteer because this is
-// a simple structured table, and PDFKit avoids the ~200MB Chromium dependency.
-// Returns a Buffer so callers can either save it, email it, or stream it
-// directly to the client without touching the filesystem.
+// Thermal receipt style with GST breakup.
 
 import PDFDocument from "pdfkit";
 
-/**
- * @param {Object} bill - output of billing.service.js generateBill()
- * @param {Object} customer - { username, email }
- * @returns {Promise<Buffer>}
- */
 export function generateBillPDF(bill, customer) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
-    const chunks = [];
+    const doc = new PDFDocument({
+      size: [226, 700],
+      margin: 16,
+      autoFirstPage: true,
+    });
 
+    const chunks = [];
     doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("end",  () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    // ── Header ─────────────────────────────────────────────────────────────
-    doc
-      .fontSize(20)
-      .font("Helvetica-Bold")
-      .text("Smart Trolly 2.0", { align: "center" })
-      .fontSize(10)
-      .font("Helvetica")
-      .text("Automated Checkout Receipt", { align: "center" })
-      .moveDown(1.5);
+    const now    = new Date();
+    const dateStr = now.toLocaleDateString("en-IN");
+    const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-    // ── Customer + order meta ─────────────────────────────────────────────
-    const now = new Date();
-    doc
-      .fontSize(10)
-      .text(`Customer: ${customer.username || "Guest"}`)
-      .text(`Email: ${customer.email || "-"}`)
-      .text(`Date: ${now.toLocaleDateString()}  ${now.toLocaleTimeString()}`)
-      .moveDown(1);
-
-    // ── Table header ───────────────────────────────────────────────────────
-    const tableTop = doc.y;
-    const colX = { sn: 50, item: 90, qty: 300, price: 380, total: 470 };
-
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(10)
-      .text("SN",    colX.sn,    tableTop)
-      .text("Item",  colX.item,  tableTop)
-      .text("Qty",   colX.qty,   tableTop)
-      .text("Price", colX.price, tableTop)
-      .text("Total", colX.total, tableTop);
-
-    doc
-      .moveTo(50, tableTop + 15)
-      .lineTo(545, tableTop + 15)
-      .strokeColor("#cccccc")
-      .stroke();
-
-    // ── Table rows ─────────────────────────────────────────────────────────
-    let rowY = tableTop + 25;
-    doc.font("Helvetica").fontSize(10);
-
-    for (const line of bill.lineItems) {
+    const dashedLine = () => {
       doc
-        .text(String(line.sn),                colX.sn,    rowY)
-        .text(line.item,                       colX.item,  rowY)
-        .text(String(line.quantity),            colX.qty,   rowY)
-        .text(`Rs. ${line.unitPrice}`,           colX.price, rowY)
-        .text(`Rs. ${line.total}`,               colX.total, rowY);
-      rowY += 22;
+        .moveTo(16, doc.y)
+        .lineTo(210, doc.y)
+        .dash(2, { space: 3 })
+        .strokeColor("#555")
+        .stroke()
+        .undash()
+        .moveDown(0.4);
+    };
+
+    // ── Header ────────────────────────────────────────────────────────────
+    doc
+      .fontSize(11).font("Helvetica-Bold")
+      .text("RECEIPT OF SALE", { align: "center" })
+      .fontSize(13)
+      .text("SMART TROLLY 2.0", { align: "center" })
+      .fontSize(7).font("Helvetica").moveDown(0.3)
+      .text("AI-Powered Automated Checkout", { align: "center" })
+      .moveDown(0.5);
+
+    dashedLine();
+
+    // ── Meta ──────────────────────────────────────────────────────────────
+    doc
+      .fontSize(7.5).font("Helvetica")
+      .text(`${dateStr}   ${timeStr}`, { align: "center" })
+      .moveDown(0.3);
+
+    if (customer?.username || customer?.email) {
+      doc.text(`Customer: ${customer.username || customer.email}`, { align: "center" });
     }
 
-    // ── Total ──────────────────────────────────────────────────────────────
-    doc
-      .moveTo(50, rowY + 5)
-      .lineTo(545, rowY + 5)
-      .strokeColor("#cccccc")
-      .stroke();
+    doc.moveDown(0.4);
+    dashedLine();
 
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text(`Grand Total: Rs. ${bill.totalAmount}`, colX.price, rowY + 20, {
-        align: "left",
-      });
+    // ── Column headers — S.NO | Item | Qty | Amount ───────────────────────
+    const col = { sno: 16, item: 40, qty: 140, amt: 178 };
 
+    const headerY = doc.y;
     doc
-      .moveDown(3)
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor("#888888")
-      .text("Thank you for shopping with Smart Trolly 2.0", { align: "center" });
+      .fontSize(7.5).font("Helvetica-Bold")
+      .text("S.NO", col.sno, headerY, { width: 22 })
+      .text("ITEM",   col.item, headerY, { width: 95 })
+      .text("QTY",    col.qty,  headerY, { width: 30, align: "center" })
+      .text("AMOUNT", col.amt,  headerY, { width: 32, align: "right" });
+
+    doc.moveDown(0.3);
+    dashedLine();
+
+    // ── Line items ────────────────────────────────────────────────────────
+    doc.font("Helvetica").fontSize(7.5);
+
+    for (const line of bill.lineItems) {
+      const rowY = doc.y;
+      doc
+        .text(String(line.sn),         col.sno,  rowY, { width: 22 })
+        .text(line.item,               col.item,  rowY, { width: 95 })
+        .text(String(line.quantity),   col.qty,   rowY, { width: 30, align: "center" })
+        .text(`Rs.${line.subtotal}`,   col.amt,   rowY, { width: 32, align: "right" });
+      doc.moveDown(0.35);
+
+      // GST sub-line per item
+      const gstY = doc.y;
+      doc
+        .fontSize(6.5).fillColor("#666")
+        .text(`  GST @${(line.gstRate * 100).toFixed(0)}%`,  col.item, gstY, { width: 95 })
+        .text(`Rs.${line.gstAmount}`, col.amt, gstY, { width: 32, align: "right" });
+      doc.fillColor("#000").fontSize(7.5).moveDown(0.4);
+    }
+
+    doc.moveDown(0.2);
+    dashedLine();
+
+    // ── Subtotal, GST total, Grand total ──────────────────────────────────
+    const subY = doc.y;
+    doc
+      .font("Helvetica").fontSize(7.5)
+      .text("Subtotal",          col.item, subY, { width: 95 })
+      .text(`Rs.${bill.subtotalAmount}`, col.amt,  subY, { width: 32, align: "right" });
+
+    doc.moveDown(0.4);
+    const gstTotalY = doc.y;
+    doc
+      .text("Total GST",         col.item, gstTotalY, { width: 95 })
+      .text(`Rs.${bill.totalGST}`, col.amt, gstTotalY, { width: 32, align: "right" });
+
+    doc.moveDown(0.4);
+    dashedLine();
+
+    const totalY = doc.y;
+    doc
+      .font("Helvetica-Bold").fontSize(9)
+      .text("TOTAL",             col.item, totalY, { width: 95 })
+      .text(`Rs.${bill.totalAmount}`, col.amt - 10, totalY, { width: 42, align: "right" });
+
+    doc.moveDown(1.2);
+    dashedLine();
+
+    // ── Footer ────────────────────────────────────────────────────────────
+    // Reset x to left margin before footer so centering works correctly
+    doc.x = 30;
+    doc
+      .fontSize(8).font("Helvetica-Bold")
+      .text("THANK YOU!", 16, doc.y, { width: 194, align: "center" })
+      .moveDown(0.5)
+      .fontSize(6.5).font("Helvetica").fillColor("#888")
+      .text("Smart Trolly 2.0 · AI-Powered Checkout", 16, doc.y, { width: 194, align: "center" });
 
     doc.end();
   });

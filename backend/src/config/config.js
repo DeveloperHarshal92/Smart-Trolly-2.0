@@ -46,6 +46,31 @@ if (!process.env.RAZORPAY_KEY_SECRET) {
   process.exit(1);
 }
 
+if (!process.env.SMTP_HOST) {
+  console.error('Error: SMTP_HOST environment variable is not set.');
+  process.exit(1);
+}
+
+if (!process.env.SMTP_PORT) {
+  console.error('Error: SMTP_PORT environment variable is not set.');
+  process.exit(1);
+}
+
+if (!process.env.SMTP_USER) {
+  console.error('Error: SMTP_USER environment variable is not set.');
+  process.exit(1);
+}
+
+if (!process.env.SMTP_PASS) {
+  console.error('Error: SMTP_PASS environment variable is not set.');
+  process.exit(1);
+}
+
+if (!process.env.SMTP_FROM) {
+  console.error('Error: SMTP_FROM environment variable is not set.');
+  process.exit(1);
+}
+
 export const config = {
   PORT: process.env.PORT,
   MONGO_URI: process.env.MONGO_URI,
@@ -56,4 +81,9 @@ export const config = {
   NODE_ENV: process.env.NODE_ENV,
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  SMTP_FROM: process.env.SMTP_FROM,
 };

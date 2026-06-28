@@ -1,17 +1,17 @@
 // services/mailer.service.js
-// Single nodemailer transporter, reused across requests.
-// Transporter creation is somewhat expensive — don't recreate per email.
-
 import nodemailer from "nodemailer";
 import { config } from "../config/config.js";
 
 const transporter = nodemailer.createTransport({
   host: config.SMTP_HOST,
   port: Number(config.SMTP_PORT),
-  secure: Number(config.SMTP_PORT) === 465, // true for 465, false for 587/25
+  secure: false,        // false for port 587 (STARTTLS), true for 465 (SSL)
   auth: {
     user: config.SMTP_USER,
-    pass: config.SMTP_PASS,
+    pass: config.SMTP_PASS, // must be Gmail App Password, NOT account password
+  },
+  tls: {
+    rejectUnauthorized: false, // prevents cert errors in dev environment
   },
 });
 
@@ -23,13 +23,23 @@ const transporter = nodemailer.createTransport({
  */
 export async function sendBillEmail({ toEmail, username, pdfBuffer, totalAmount }) {
   await transporter.sendMail({
-    from: config.SMTP_FROM,
+    from: `"Smart Trolly 2.0" <${config.SMTP_FROM}>`,
     to: toEmail,
     subject: "Your Smart Trolly Receipt",
-    text: `Hi ${username || "there"},\n\nThanks for shopping with Smart Trolly 2.0. Your total was Rs. ${totalAmount}. Your receipt is attached.\n\n— Smart Trolly Team`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #10b981;">Smart Trolly 2.0</h2>
+        <p>Hi <strong>${username || "there"}</strong>,</p>
+        <p>Thanks for shopping with Smart Trolly 2.0.</p>
+        <p>Your total was <strong>₹${totalAmount}</strong>.</p>
+        <p>Your receipt is attached as a PDF.</p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0"/>
+        <p style="color:#94a3b8;font-size:12px;">Smart Trolly 2.0 — AI-Powered Checkout</p>
+      </div>
+    `,
     attachments: [
       {
-        filename: "receipt.pdf",
+        filename: `receipt_${Date.now()}.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf",
       },
