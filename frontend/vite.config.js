@@ -1,9 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import path from "path";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   server: {
     proxy: {
       "/api": {
@@ -11,8 +17,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      // WebSocket detection feed — must be proxied separately,
-      // ws:true is required or Vite will not upgrade the connection
       "/ws": {
         target: "ws://localhost:3000",
         ws: true,

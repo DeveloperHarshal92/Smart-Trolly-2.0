@@ -1,19 +1,19 @@
 // app/app.routes.jsx
+import React from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Login from "../features/auth/pages/Login";
 import Register from "../features/auth/pages/Register";
 import AuthLayout from "../features/auth/pages/AuthLayout";
 import CameraView from "../features/shop/pages/CameraView";
-
-// Placeholder — replace with real Shop page when built
-const ShopPage = () => (
-  <div className="min-h-screen flex items-center justify-center bg-slate-50">
-    <h1 className="text-slate-700 font-semibold">Shop — coming soon</h1>
-  </div>
-);
+import LandingPage from "../features/shop/pages/LandingPage";
+import NotFoundPage from "../features/common/pages/NotFoundPage";
 
 export const routes = createBrowserRouter([
-  // ── Public routes ──────────────────────────────────────────────────────────
+  // ── Public Marketing & Auth routes (Zone A) ────────────────────────────────
+  {
+    path: "/",
+    element: <LandingPage />,
+  },
   {
     path: "/login",
     element: <Login />,
@@ -23,25 +23,24 @@ export const routes = createBrowserRouter([
     element: <Register />,
   },
 
-  // ── Protected routes (wrapped by AuthLayout) ───────────────────────────────
-  // AuthLayout fires fetchCurrentUser, shows spinner, redirects to /login if
-  // unauthenticated. All shop/dashboard pages go inside here as children.
+  // ── Protected Live Detection routes (Zone B) ──────────────────────────────
   {
     element: <AuthLayout />,
     children: [
       {
-        path: "/",
-        element: <CameraView/>,
+        path: "/scan",
+        element: <CameraView />,
       },
-      // Add more protected routes here as the project grows:
-      // { path: "/checkout", element: <CheckoutPage /> },
-      // { path: "/bill",     element: <BillPage /> },
+      {
+        path: "/dashboard",
+        element: <Navigate to="/scan" replace />,
+      },
     ],
   },
 
-  // ── Fallback ───────────────────────────────────────────────────────────────
+  // ── 404 Fallback ───────────────────────────────────────────────────────────
   {
     path: "*",
-    element: <Navigate to="/" replace />,
+    element: <NotFoundPage />,
   },
 ]);

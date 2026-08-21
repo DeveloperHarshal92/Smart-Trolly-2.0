@@ -1,7 +1,7 @@
 // features/shop/pages/ReceiptModal.jsx
-
-import { useState } from "react";
+import React, { useState } from "react";
 import axios from "axios";
+import { CheckCircle2, X, Send, Eye, FileText, Loader2, Sparkles } from "lucide-react";
 
 const ReceiptModal = ({ receipt, onClose }) => {
   const [sending, setSending] = useState(false);
@@ -12,7 +12,7 @@ const ReceiptModal = ({ receipt, onClose }) => {
 
   const handleViewReceipt = () => {
     const byteChars = atob(receipt.pdfBase64);
-    const byteNums  = Array.from(byteChars).map((c) => c.charCodeAt(0));
+    const byteNums = Array.from(byteChars).map((c) => c.charCodeAt(0));
     const blob = new Blob([new Uint8Array(byteNums)], { type: "application/pdf" });
     window.open(URL.createObjectURL(blob), "_blank");
   };
@@ -35,131 +35,116 @@ const ReceiptModal = ({ receipt, onClose }) => {
   const { lineItems, subtotalAmount, totalGST, totalAmount } = receipt.bill;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
-
-        {/* Cross icon */}
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 font-sans">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative text-slate-100 animate-in fade-in zoom-in-95 duration-200">
+        {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+          className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
-        <div className="flex flex-col items-center text-center mb-5 mt-2">
-          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+        <div className="flex flex-col items-center text-center mb-6 mt-1">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-3.5 shadow-lg shadow-emerald-950/30">
+            <CheckCircle2 className="w-7 h-7 text-emerald-400" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900">Payment Successful</h2>
-          <p className="text-sm text-slate-400 mt-1">Receipt ready</p>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[11px] font-mono font-medium mb-1">
+            <Sparkles className="w-3 h-3" />
+            Payment Verified
+          </div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Checkout Completed</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Your official tax invoice is ready</p>
         </div>
 
-        {/* Bill table — S.NO | Item | Qty | Amount */}
-        <div className="bg-slate-50 rounded-xl mb-4 overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wide">
-                <th className="text-left font-medium px-3 py-2 w-8">S.No</th>
-                <th className="text-left font-medium px-2 py-2">Item</th>
-                <th className="text-center font-medium px-2 py-2 w-10">Qty</th>
-                <th className="text-right font-medium px-3 py-2 w-16">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((line) => (
-                <>
-                  <tr key={line.sn} className="border-t border-slate-100">
-                    <td className="px-3 py-2 text-slate-400">{line.sn}</td>
-                    <td className="px-2 py-2 text-slate-700 font-medium">{line.item}</td>
-                    <td className="px-2 py-2 text-center text-slate-600">{line.quantity}</td>
-                    <td className="px-3 py-2 text-right text-slate-700">₹{line.subtotal}</td>
-                  </tr>
-                  <tr key={`${line.sn}-gst`} className="bg-slate-50/50">
-                    <td />
-                    <td className="px-2 pb-2 text-slate-400 text-[10px]" colSpan={2}>
-                      GST @{(line.gstRate * 100).toFixed(0)}%
-                    </td>
-                    <td className="px-3 pb-2 text-right text-slate-400 text-[10px]">
-                      +₹{line.gstAmount}
-                    </td>
-                  </tr>
-                </>
-              ))}
-            </tbody>
-          </table>
+        {/* Thermal Bill Container */}
+        <div className="bg-slate-950 rounded-2xl border border-slate-800/80 p-4 mb-5 shadow-inner">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 text-[11px] font-mono text-slate-400 uppercase">
+            <span>Item Breakdown</span>
+            <span>Qty · Price</span>
+          </div>
 
-          {/* Subtotal + GST + Total */}
-          <div className="border-t border-slate-200 px-3 py-2 space-y-1">
-            <div className="flex justify-between text-xs text-slate-500">
+          <div className="divide-y divide-slate-800/40 max-h-48 overflow-y-auto my-2 pr-1">
+            {lineItems.map((line) => (
+              <div key={line.sn} className="py-2 flex items-center justify-between text-xs">
+                <div>
+                  <div className="font-medium text-slate-200">{line.item}</div>
+                  <div className="text-[10px] text-slate-500">
+                    GST {(line.gstRate * 100).toFixed(0)}% (+₹{line.gstAmount})
+                  </div>
+                </div>
+                <div className="text-right font-mono">
+                  <span className="text-slate-400 text-[11px] mr-2">×{line.quantity}</span>
+                  <span className="text-slate-100 font-semibold">₹{line.total}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Subtotal, GST, Total */}
+          <div className="border-t border-slate-800/80 pt-3 space-y-1 text-xs">
+            <div className="flex justify-between text-slate-400">
               <span>Subtotal</span>
-              <span>₹{subtotalAmount}</span>
+              <span className="font-mono">₹{subtotalAmount}</span>
             </div>
-            <div className="flex justify-between text-xs text-slate-500">
+            <div className="flex justify-between text-slate-400">
               <span>Total GST</span>
-              <span>₹{totalGST}</span>
+              <span className="font-mono text-emerald-400">+ ₹{totalGST}</span>
             </div>
-            <div className="flex justify-between text-sm font-bold text-slate-900 pt-1 border-t border-slate-200">
-              <span>Total</span>
-              <span className="text-emerald-600">₹{totalAmount}</span>
+            <div className="flex justify-between items-center text-sm font-bold text-white pt-2 border-t border-slate-800/80">
+              <span>Total Amount Paid</span>
+              <span className="font-mono text-emerald-400 text-base">₹{totalAmount}</span>
             </div>
           </div>
         </div>
 
         {sendError && (
-          <p className="text-xs text-red-500 text-center mb-3">{sendError}</p>
+          <p className="text-xs text-rose-400 text-center mb-3 font-mono">{sendError}</p>
         )}
 
-        {/* Action buttons */}
-        <div className="flex gap-3">
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-2.5">
           <button
             onClick={handleSendReceipt}
             disabled={sending || sent}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20"
           >
             {sending ? (
               <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-                Sending…
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Sending Receipt...
               </>
             ) : sent ? (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                Sent!
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Sent to Email!
               </>
             ) : (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Send Receipt
+                <Send className="w-3.5 h-3.5" />
+                Email Receipt
               </>
             )}
           </button>
+
           <button
             onClick={handleViewReceipt}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-all"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition-all border border-slate-700"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            View Receipt
+            <Eye className="w-3.5 h-3.5" />
+            View PDF
           </button>
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
-          Smart Trolly 2.0 · AI-Powered Checkout
-        </p>
+        <div className="mt-4 text-center">
+          <button
+            onClick={onClose}
+            className="text-xs text-slate-400 hover:text-slate-200 font-medium transition-colors"
+          >
+            Done and Close
+          </button>
+        </div>
       </div>
     </div>
   );

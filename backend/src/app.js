@@ -15,6 +15,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
+// ── Static files ─────────────────────────────────────────────────────────
+app.use(express.static("public"));
+
 // ── Passport / Google OAuth ────────────────────────────────────────────────
 app.use(passport.initialize());
 passport.use(

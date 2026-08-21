@@ -1,18 +1,48 @@
 // features/shop/pages/CameraView.jsx
-// UI layer only. Camera + detection from useDetection, checkout from useCheckout.
+// Zone B: Live Detection Interface — Dark Cinematic Theme
 
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useDetection } from "../hooks/useDetection";
 import { useCheckout } from "../hooks/useCheckout";
+import { useAuth } from "../../auth/hooks/useAuth";
+import { useTheme } from "../../common/context/ThemeContext";
+import { removeItem, clearTrolley } from "../state/detection.slice";
 import { fetchPreviewBill } from "../../payment/state/payment.slice";
 import ReceiptModal from "./ReceiptModal";
+import {
+  Camera,
+  CameraOff,
+  ShoppingCart,
+  Trash2,
+  ArrowLeft,
+  LogOut,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 
-const STATUS_STYLES = {
-  idle: { dot: "bg-slate-400", text: "Not started" },
-  connecting: { dot: "bg-amber-400 animate-pulse", text: "Connecting…" },
-  connected: { dot: "bg-emerald-400", text: "Live" },
-  error: { dot: "bg-red-500", text: "Error" },
+const STATUS_CONFIG = {
+  idle: {
+    dot: "cv-status-dot cv-status-idle",
+    text: "Offline",
+    badge: "cv-status-badge cv-status-badge-idle",
+  },
+  connecting: {
+    dot: "cv-status-dot cv-status-connecting",
+    text: "Connecting…",
+    badge: "cv-status-badge cv-status-badge-connecting",
+  },
+  connected: {
+    dot: "cv-status-dot cv-status-connected",
+    text: "Live Stream",
+    badge: "cv-status-badge cv-status-badge-connected",
+  },
+  error: {
+    dot: "cv-status-dot cv-status-error",
+    text: "Stream Error",
+    badge: "cv-status-badge cv-status-badge-error",
+  },
 };
 
 const PREVIEW_DEBOUNCE_MS = 600;
@@ -20,6 +50,8 @@ const PREVIEW_DEBOUNCE_MS = 600;
 const CameraView = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
+  const { handleLogout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { previewBill, previewLoading } = useSelector((s) => s.payment);
 
   const {
@@ -41,30 +73,18 @@ const CameraView = () => {
     resetPayment,
   } = useCheckout();
 
-  const statusStyle = STATUS_STYLES[status] ?? STATUS_STYLES.idle;
   const isRunning = status === "connecting" || status === "connected";
-  const isCheckingOut = [
-    "creating_order",
-    "awaiting_payment",
-    "verifying",
-  ].includes(checkoutStatus);
+  const isCheckingOut = ["creating_order", "awaiting_payment", "verifying"].includes(checkoutStatus);
+  const statusStyle = STATUS_CONFIG[status] || STATUS_CONFIG.idle;
 
-  // Debounced live preview — fires PREVIEW_DEBOUNCE_MS after trolleyItems
-  // last changed, not on every single addition.
   const debounceRef = useRef(null);
-
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (trolleyItems.length === 0) {
-      return; // nothing to preview — backend would 400 on empty array anyway
-    }
-
+    if (trolleyItems.length === 0) return;
     debounceRef.current = setTimeout(() => {
       const labels = trolleyItems.map((item) => item.label);
       dispatch(fetchPreviewBill(labels));
     }, PREVIEW_DEBOUNCE_MS);
-
     return () => clearTimeout(debounceRef.current);
   }, [trolleyItems, dispatch]);
 
@@ -73,179 +93,258 @@ const CameraView = () => {
     startCheckout(labels, user);
   };
 
+  const handleRemoveItem = (index) => dispatch(removeItem(index));
+  const handleClearTrolley = () => dispatch(clearTrolley());
+
   return (
-    <div className="min-h-screen bg-slate-50 p-6 sm:p-10">
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6">
-        {/* Camera — 70% width on large screens */}
-        <div className="lg:w-[70%]">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold text-slate-900">Live Detection</h1>
-            <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${statusStyle.dot}`} />
-              <span className="text-xs font-medium text-slate-500">
-                {statusStyle.text}
+    <div className="cv-root">
+      {/* ── Top Bar ─────────────────────────────────────────────────────── */}
+      <header className="cv-header">
+        <div className="cv-header-inner">
+          {/* Left: back + brand */}
+          <div className="cv-header-left">
+            <Link to="/" className="cv-back-btn">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="cv-back-text">Home</span>
+            </Link>
+            <div className="cv-header-divider" />
+            <div className="cv-brand">
+              <div className="cv-brand-icon">
+                <Camera className="w-4 h-4" />
+              </div>
+              <span className="cv-brand-name">
+                Smart Trolly <span className="cv-brand-version">2.0</span>
               </span>
             </div>
           </div>
 
-          <div className="relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden shadow-lg">
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              muted
-              playsInline
-            />
+          {/* Right: status + theme + user */}
+          <div className="cv-header-right">
+            <div className={statusStyle.badge}>
+              <span className={statusStyle.dot} />
+              <span>{statusStyle.text}</span>
+            </div>
+
+            <button onClick={toggleTheme} className="cv-icon-btn" aria-label="Toggle theme">
+              {theme === "dark" ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 7a5 5 0 100 10A5 5 0 0012 7z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+
+            <div className="cv-user-row">
+              <span className="cv-username">{user?.username || user?.email}</span>
+              <button onClick={handleLogout} className="cv-logout-btn" title="Sign out">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Main Workspace ───────────────────────────────────────────────── */}
+      <main className="cv-main">
+        {/* Left: Video Feed */}
+        <div className="cv-video-col">
+          {/* Controls row */}
+          <div className="cv-controls-row">
+            <div>
+              <h1 className="cv-feed-title">
+                Neural Vision Feed
+                <span className="cv-feed-badge">YOLOv8 ONNX</span>
+              </h1>
+              <p className="cv-feed-sub">640×480 · WebSocket · 200ms intervals</p>
+            </div>
+            <div className="cv-btn-group">
+              <button onClick={start} disabled={isRunning} className="cv-btn-start">
+                <Camera className="w-4 h-4" />
+                Start
+              </button>
+              <button onClick={stop} disabled={!isRunning} className="cv-btn-stop">
+                <CameraOff className="w-4 h-4" />
+                Stop
+              </button>
+            </div>
+          </div>
+
+          {/* Video viewport */}
+          <div className="cv-viewport">
+            <video ref={videoRef} className="cv-video" muted playsInline />
             <canvas ref={canvasRef} className="hidden" />
 
+            {/* Detection bounding boxes */}
             {liveBoxes.map((box, i) => {
               const video = videoRef.current;
               if (!video || !video.videoWidth) return null;
-
               const leftPct = (box.bboxPixel.x1 / video.videoWidth) * 100;
               const topPct = (box.bboxPixel.y1 / video.videoHeight) * 100;
-              const widthPct =
-                ((box.bboxPixel.x2 - box.bboxPixel.x1) / video.videoWidth) *
-                100;
-              const heightPct =
-                ((box.bboxPixel.y2 - box.bboxPixel.y1) / video.videoHeight) *
-                100;
-
+              const widthPct = ((box.bboxPixel.x2 - box.bboxPixel.x1) / video.videoWidth) * 100;
+              const heightPct = ((box.bboxPixel.y2 - box.bboxPixel.y1) / video.videoHeight) * 100;
               return (
                 <div
                   key={i}
-                  className="absolute border-2 border-emerald-400 rounded"
-                  style={{
-                    left: `${leftPct}%`,
-                    top: `${topPct}%`,
-                    width: `${widthPct}%`,
-                    height: `${heightPct}%`,
-                  }}
+                  className="cv-bbox"
+                  style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${widthPct}%`, height: `${heightPct}%` }}
                 >
-                  <span className="absolute -top-5 left-0 bg-emerald-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-sm whitespace-nowrap">
+                  <span className="cv-bbox-label">
                     {box.label} · {(box.confidence * 100).toFixed(0)}%
                   </span>
                 </div>
               );
             })}
 
+            {/* Scan line when running */}
+            {isRunning && (
+              <div className="cv-scanline-wrap">
+                <div className="cv-scanline animate-scan" />
+              </div>
+            )}
+
+            {/* Inactive overlay */}
             {!isRunning && (
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60">
-                <p className="text-slate-300 text-sm">Camera is off</p>
+              <div className="cv-inactive-overlay">
+                <div className="cv-inactive-icon">
+                  <CameraOff className="w-6 h-6" />
+                </div>
+                <h3 className="cv-inactive-title">Camera Inactive</h3>
+                <p className="cv-inactive-body">
+                  Click Start to grant camera access and begin neural detection
+                </p>
               </div>
             )}
           </div>
 
-          {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+          {/* Error */}
+          {error && (
+            <div className="cv-error-banner">
+              Stream error: {error}
+            </div>
+          )}
 
-          <div className="mt-4 flex gap-3">
-            <button
-              onClick={start}
-              disabled={isRunning}
-              className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all"
-            >
-              Start Scanning
-            </button>
-            <button
-              onClick={stop}
-              disabled={!isRunning}
-              className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-sm font-semibold rounded-xl transition-all"
-            >
-              Stop
-            </button>
+          {/* Telemetry chips */}
+          <div className="cv-telemetry-row">
+            <div className="cv-telemetry-chip">
+              <span className="cv-telemetry-label">Streak Gate</span>
+              <span className="cv-telemetry-value">3 Frames</span>
+            </div>
+            <div className="cv-telemetry-chip">
+              <span className="cv-telemetry-label">Cooldown</span>
+              <span className="cv-telemetry-value">4,000 ms</span>
+            </div>
+            <div className="cv-telemetry-chip">
+              <span className="cv-telemetry-label">Confidence</span>
+              <span className="cv-telemetry-value cv-telemetry-accent">≥ 70%</span>
+            </div>
           </div>
         </div>
 
-        {/* Bill panel — 30% width, PDF-style list, backend-derived total */}
-        <div className="lg:w-[30%]">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm sticky top-6">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="text-sm font-semibold text-slate-700">
-                Order Summary
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {trolleyItems.length} item(s) detected
-              </p>
-            </div>
-
-            <div className="max-h-[400px] overflow-y-auto">
-              {!previewBill || previewBill.lineItems.length === 0 ? (
-                <p className="px-5 py-8 text-sm text-slate-400 text-center">
-                  {trolleyItems.length === 0 ? "No items yet" : "Calculating…"}
-                </p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-slate-400 uppercase tracking-wide">
-                      <th className="text-left font-medium px-5 py-2">S.No</th>
-                      <th className="text-left font-medium px-2 py-2">
-                        Product
-                      </th>
-                      <th className="text-right font-medium px-2 py-2">Qty</th>
-                      <th className="text-right font-medium px-5 py-2">
-                        Amount
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewBill.lineItems.map((line) => (
-                      <tr key={line.sn} className="border-t border-slate-50">
-                        <td className="px-5 py-2.5 text-slate-400">
-                          {line.sn}
-                        </td>
-                        <td className="px-2 py-2.5 text-slate-700 font-medium">
-                          {line.item}
-                        </td>
-                        <td className="px-2 py-2.5 text-right text-slate-600">
-                          {line.quantity}
-                        </td>
-                        <td className="px-5 py-2.5 text-right text-slate-600">
-                          ₹{line.total}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Backend-computed total — never derived on the frontend */}
-            {previewBill && previewBill.lineItems.length > 0 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Total{" "}
-                    {previewLoading && (
-                      <span className="text-slate-400 font-normal text-xs">
-                        · updating…
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Incl. GST ₹{previewBill.totalGST}
-                  </p>
+        {/* Right: Smart Cart */}
+        <div className="cv-cart-col">
+          <div className="cv-cart-card">
+            {/* Cart header */}
+            <div className="cv-cart-header">
+              <div className="cv-cart-title-row">
+                <div className="cv-cart-icon">
+                  <ShoppingCart className="w-4 h-4" />
                 </div>
-                <span className="text-base font-bold text-emerald-600">
-                  ₹{previewBill.totalAmount}
-                </span>
+                <div>
+                  <h2 className="cv-cart-title">Smart Cart</h2>
+                  <p className="cv-cart-count">{trolleyItems.length} item(s)</p>
+                </div>
               </div>
-            )}
-
-            <div className="p-5 border-t border-slate-100">
-              {checkoutError && (
-                <p className="text-xs text-red-500 mb-3">{checkoutError}</p>
+              {trolleyItems.length > 0 && (
+                <button onClick={handleClearTrolley} className="cv-clear-btn">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear
+                </button>
               )}
+            </div>
+
+            {/* Items list */}
+            <div className="cv-items-list">
+              {!previewBill || previewBill.lineItems.length === 0 ? (
+                <div className="cv-empty-cart">
+                  <ShoppingCart className="cv-empty-icon" />
+                  <p className="cv-empty-text">Cart is empty</p>
+                  <p className="cv-empty-sub">Present items to camera</p>
+                </div>
+              ) : (
+                previewBill.lineItems.map((line, idx) => (
+                  <div key={line.sn} className="cv-item-row">
+                    <div className="cv-item-info">
+                      <span className="cv-item-sn">{line.sn}</span>
+                      <div>
+                        <div className="cv-item-name">{line.item}</div>
+                        <div className="cv-item-meta">
+                          Qty: {line.quantity} · GST: {(line.gstRate * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="cv-item-actions">
+                      <span className="cv-item-price">₹{line.total}</span>
+                      <button onClick={() => handleRemoveItem(idx)} className="cv-item-remove">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Bill summary + checkout */}
+            <div className="cv-bill-section">
+              {previewBill && previewBill.lineItems.length > 0 && (
+                <div className="cv-bill-rows">
+                  <div className="cv-bill-row">
+                    <span>Subtotal</span>
+                    <span className="cv-bill-mono">₹{previewBill.subtotalAmount}</span>
+                  </div>
+                  <div className="cv-bill-row">
+                    <span>Total GST</span>
+                    <span className="cv-bill-mono cv-bill-gst">+ ₹{previewBill.totalGST}</span>
+                  </div>
+                  <div className="cv-bill-total">
+                    <span>
+                      Grand Total
+                      {previewLoading && <span className="cv-bill-updating">(updating…)</span>}
+                    </span>
+                    <span className="cv-bill-total-value">₹{previewBill.totalAmount}</span>
+                  </div>
+                </div>
+              )}
+
+              {checkoutError && (
+                <p className="cv-checkout-error">{checkoutError}</p>
+              )}
+
               <button
                 onClick={handleCheckout}
                 disabled={trolleyItems.length === 0 || isCheckingOut}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3 rounded-xl transition-all"
+                className="cv-checkout-btn"
               >
-                {isCheckingOut ? "Processing…" : "Proceed to Checkout"}
+                {isCheckingOut ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing…
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    Razorpay Checkout
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
+      {/* Receipt Modal */}
       {checkoutStatus === "success" && (
         <ReceiptModal receipt={receipt} onClose={resetPayment} />
       )}

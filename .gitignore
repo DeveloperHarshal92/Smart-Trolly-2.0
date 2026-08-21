@@ -1,0 +1,7 @@
+.vscode
+.agents
+.claude
+skills
+node_modules
+.env
+skills-lock.json
