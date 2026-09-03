@@ -121,7 +121,7 @@ export const googleCallback = async (req, res) => {
     );
 
     res.cookie("token", token);
-    res.redirect("http://localhost:5173/");
+    res.redirect("https://smart-trolly-2-0.onrender.com/");
   } catch (error) {
     console.log(error);
     res.status(500).json({

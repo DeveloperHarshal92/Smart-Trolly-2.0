@@ -20,13 +20,13 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: "https://smart-trolly-2-0.onrender.com/",
         changeOrigin: true,
         secure: false,
       },
 
       "/ws": {
-        target: "ws://localhost:3000",
+        target: "ws://smart-trolly-2-0.onrender.com",
         ws: true,
         changeOrigin: true,
       },
